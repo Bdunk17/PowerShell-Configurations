@@ -1,8 +1,8 @@
 $CONFIG_PATH = "~\Desktop\Config_Files"
 
 function Add-ConfigFolder {
-    if (-not (Test-Path -Path "~\Desktop\config_info")) {
-        New-Item -Path "~\Desktop\config_info" -ItemType Directory
+    if (-not (Test-Path -Path $CONFIG_PATH)) {
+        New-Item -Path $CONFIG_PATH -ItemType Directory
     }
 }
 
@@ -229,13 +229,6 @@ function Out-FMSORoles {
     Get-ADFSMORole | Out-File ("{0}\ADFSMORoles.txt" -f $CONFIG_PATH)
 }
 
-function Get-AllADDomainUsers {
-    [CmdletBinding()]
-    PARAM (
-        ($String)DC1
-        $String:DC2
-        
-    }
 
     Add-ConfigFolder
     Out-InstalledSoftware

@@ -1,14 +1,14 @@
 $CONFIG_PATH = "~\Desktop\Config_Files"
 
 function Add-ConfigFolder {
-    if(-not (Test-Path -Path "~\Desktop\config_info")){
+    if (-not (Test-Path -Path "~\Desktop\config_info")) {
         New-Item -Path "~\Desktop\config_info" -ItemType Directory
     }
 }
 
 
 function Get-InstalledSoftware {
-<#
+    <#
 .SYNOPSIS
     Pull software details from registry on one or more computers
 .DESCRIPTION
@@ -30,51 +30,45 @@ function Get-InstalledSoftware {
 .EXAMPLE
     #pull software with publisher matching microsoft and displayname matching lync from c-is-ts-91
         "c-is-ts-91" | Get-InstalledSoftware -DisplayName lync -Publisher microsoft | Format-Table -AutoSize
-.LINK
-    http://gallery.technet.microsoft.com/scriptcenter/Get-InstalledSoftware-Get-5607a465
+
 .FUNCTIONALITY
     Computers
 #>
     param (
         [Parameter(
             Position = 0,
-            ValueFromPipeline=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            ValueFromRemainingArguments=$false
+            ValueFromPipeline = $true,
+            ValueFromPipelineByPropertyName = $true, 
+            ValueFromRemainingArguments = $false
         )]
         [ValidateNotNullOrEmpty()]
-        [Alias('CN','__SERVER','Server','Computer')]
-            [string[]]$ComputerName = $env:computername,
+        [Alias('CN', '__SERVER', 'Server', 'Computer')]
+        [string[]]$ComputerName = $env:computername,
         
-            [string]$DisplayName = $null,
+        [string]$DisplayName = $null,
         
-            [string]$Publisher = $null
+        [string]$Publisher = $null
     )
 
-    Begin
-    {
+    Begin {
         
         #define uninstall keys to cover 32 and 64 bit operating systems.
         #This will yeild only 32 bit software and double entries on 64 bit systems running 32 bit PowerShell
-            $UninstallKeys = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
-                "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
+        $UninstallKeys = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+        "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
 
     }
 
-    Process
-    {
+    Process {
 
         #Loop through each provided computer.  Provide a label for error handling to continue with the next computer.
-        :computerLoop foreach($computer in $computername)
-        {
+        :computerLoop foreach ($computer in $computername) {
             
-            Try
-            {
+            Try {
                 #Attempt to connect to the localmachine hive of the specified computer
-                $reg=[microsoft.win32.registrykey]::OpenRemoteBaseKey('LocalMachine',$computer)
+                $reg = [microsoft.win32.registrykey]::OpenRemoteBaseKey('LocalMachine', $computer)
             }
-            Catch
-            {
+            Catch {
                 #Skip to the next computer if we can't talk to this one
                 Write-Error "Error:  Could not open LocalMachine hive on $computer`: $_"
                 Write-Verbose "Check Connectivity, permissions, and Remote Registry service for '$computer'"
@@ -82,81 +76,73 @@ function Get-InstalledSoftware {
             }
 
             #Loop through the 32 bit and 64 bit registry keys
-            foreach($uninstallKey in $UninstallKeys)
-            {
+            foreach ($uninstallKey in $UninstallKeys) {
             
-                Try
-                {
+                Try {
                     #Open the Uninstall key
-                        $regkey = $null
-                        $regkey = $reg.OpenSubKey($UninstallKey)
+                    $regkey = $null
+                    $regkey = $reg.OpenSubKey($UninstallKey)
 
                     #If the reg key exists...
-                    if($regkey)
-                    {    
+                    if ($regkey) {    
                                         
                         #Retrieve an array of strings containing all the subkey names
-                            $subkeys = $regkey.GetSubKeyNames()
+                        $subkeys = $regkey.GetSubKeyNames()
 
                         #Open each Subkey and use GetValue Method to return the required values for each
-                            foreach($key in $subkeys)
-                            {
+                        foreach ($key in $subkeys) {
 
-                                #Build the full path to the key for this software
-                                    $thisKey = $UninstallKey+"\\"+$key 
+                            #Build the full path to the key for this software
+                            $thisKey = $UninstallKey + "\\" + $key 
                             
-                                #Open the subkey for this software
-                                    $thisSubKey = $null
-                                    $thisSubKey=$reg.OpenSubKey($thisKey)
+                            #Open the subkey for this software
+                            $thisSubKey = $null
+                            $thisSubKey = $reg.OpenSubKey($thisKey)
                             
-                                #If the subkey exists
-                                if($thisSubKey){
-                                    try
-                                    {
+                            #If the subkey exists
+                            if ($thisSubKey) {
+                                try {
                             
-                                        #Get the display name.  If this is not empty we know there is information to show
-                                            $dispName = $thisSubKey.GetValue("DisplayName")
+                                    #Get the display name.  If this is not empty we know there is information to show
+                                    $dispName = $thisSubKey.GetValue("DisplayName")
                                 
-                                        #Get the publisher name ahead of time to allow filtering using Publisher parameter
-                                            $pubName = $thisSubKey.GetValue("Publisher")
+                                    #Get the publisher name ahead of time to allow filtering using Publisher parameter
+                                    $pubName = $thisSubKey.GetValue("Publisher")
 
-                                        #Collect subset of values from the key if there is a displayname
-                                        #Filter by displayname and publisher if specified
-                                        if( $dispName -and
+                                    #Collect subset of values from the key if there is a displayname
+                                    #Filter by displayname and publisher if specified
+                                    if ( $dispName -and
                                             (-not $DisplayName -or $dispName -match $DisplayName ) -and
                                             (-not $Publisher -or $pubName -match $Publisher )
-                                        )
-                                        {
+                                    ) {
 
-                                            #Display the output object, compatible with PowerShell 2
-                                            New-Object PSObject -Property @{
-                                                ComputerName = $computer
-                                                DisplayName = $dispname
-                                                Publisher = $pubName
-                                                Version = $thisSubKey.GetValue("DisplayVersion")
-                                                UninstallString = $thisSubKey.GetValue("UninstallString") 
-                                                InstallDate = $thisSubKey.GetValue("InstallDate")
-                                            } | select ComputerName, DisplayName, Publisher, Version, UninstallString, InstallDate
-                                        }
-                                    }
-                                    Catch
-                                    {
-                                        #Error with one specific subkey, continue to the next
-                                        Write-Error "Unknown error: $_"
-                                        Continue
+                                        #Display the output object, compatible with PowerShell 2
+                                        New-Object PSObject -Property @{
+                                            ComputerName    = $computer
+                                            DisplayName     = $dispname
+                                            Publisher       = $pubName
+                                            Version         = $thisSubKey.GetValue("DisplayVersion")
+                                            UninstallString = $thisSubKey.GetValue("UninstallString") 
+                                            InstallDate     = $thisSubKey.GetValue("InstallDate")
+                                        } | select ComputerName, DisplayName, Publisher, Version, UninstallString, InstallDate
                                     }
                                 }
+                                Catch {
+                                    #Error with one specific subkey, continue to the next
+                                    Write-Error "Unknown error: $_"
+                                    Continue
+                                }
                             }
+                        }
                     }
                 }
-                Catch
-                {
+                Catch {
 
                     #Write verbose output if we couldn't open the uninstall key
                     Write-Verbose "Could not open key '$uninstallkey' on computer '$computer': $_"
 
                     #If we see an access denied message, let the user know and provide details, continue to the next computer
-                    if($_ -match "Requested registry access is not allowed"){
+                    if ($_ -match "Requested registry access is not allowed") {
                         Write-Error "Registry access to $computer denied.  Check your permissions.  Details: $_"
                         continue computerLoop
                     }
@@ -170,6 +156,90 @@ function Get-InstalledSoftware {
 function Out-InstalledSoftware {
     Get-InstalledSoftware | Out-File ("{0}\installed_software.txt" -f $CONFIG_PATH)
 }
-Add-ConfigFolder
-Out-InstalledSoftware
+function Out-InstalledWindowsFeatures {
+    (Get-WindowsFeature | Where-Object { $_.InstallState -eq "Installed" }) | Out-File ("{0}\WindowsFeatures.txt" -f $CONFIG_PATH)
+}
+
+function Get-ADFSMORole {
+    <#
+.SYNOPSIS
+    Retrieve the FSMO Role in the Forest/Domain.
+.DESCRIPTION
+    Retrieve the FSMO Role in the Forest/Domain.
+.PARAMETER Credential
+    Specify the alternative credential to use
+.EXAMPLE
+    Get-ADFSMORole
+.EXAMPLE
+    Get-ADFSMORole -Credential (Get-Credential -Credential "CONTOSO\SuperAdmin")
+.NOTES
+    Francois-Xavier Cat
+    lazywinadmin.com
+    @lazywinadmin
+    github.com/lazywinadmin
+    1.0 | 2016/00/00 | Francois-Xavier Cat
+        Initial Version
+    1.1 | 2017/11/01 | Francois-Xavier Cat
+        Update Error handling
+        Update logic
+        Remove warning messages
+        Replace tabs with spaces
+.link
+    https://github.com/lazywinadmin/PowerShell
+#>
+    [CmdletBinding()]
+    PARAM (
+        [Alias("RunAs")]
+        [System.Management.Automation.Credential()]
+        [pscredential]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )#PARAM
+    TRY {
+        # Load ActiveDirectory Module if not already loaded.
+        IF (-not (Get-Module -Name ActiveDirectory)) { Import-Module -Name ActiveDirectory -ErrorAction 'Stop' -Verbose:$false }
+
+        IF ($PSBoundParameters['Credential']) {
+            # Query with the credentials specified
+            $ForestRoles = Get-ADForest -Credential $Credential -ErrorAction 'Stop' -ErrorVariable ErrorGetADForest
+            $DomainRoles = Get-ADDomain -Credential $Credential -ErrorAction 'Stop' -ErrorVariable ErrorGetADDomain
+        }
+        ELSE {
+            # Query with the current credentials
+            $ForestRoles = Get-ADForest
+            $DomainRoles = Get-ADDomain
+        }
+
+        # Define Properties
+        $Properties = @{
+            SchemaMaster         = $ForestRoles.SchemaMaster
+            DomainNamingMaster   = $ForestRoles.DomainNamingMaster
+            InfraStructureMaster = $DomainRoles.InfraStructureMaster
+            RIDMaster            = $DomainRoles.RIDMaster
+            PDCEmulator          = $DomainRoles.PDCEmulator
+        }
+
+        New-Object -TypeName PSObject -Property $Properties
+    }
+    CATCH {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
+}
+
+function Out-FMSORoles {
+    Get-ADFSMORole | Out-File ("{0}\ADFSMORoles.txt" -f $CONFIG_PATH)
+}
+
+function Get-AllADDomainUsers {
+    [CmdletBinding()]
+    PARAM (
+        ($String)DC1
+        $String:DC2
+        
+    }
+
+    Add-ConfigFolder
+    Out-InstalledSoftware
+    Out-InstalledWindowsFeatures
+    Out-FMSORoles
+
 

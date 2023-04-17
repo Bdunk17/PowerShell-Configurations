@@ -229,10 +229,19 @@ function Out-FMSORoles {
     Get-ADFSMORole | Out-File ("{0}\ADFSMORoles.txt" -f $CONFIG_PATH)
 }
 
+function Out-SystemInfo {
+    systeminfo | Out-File -FilePath ("{0}\systeminfo.txt" -f $CONFIG_PATH)
+}
 
-    Add-ConfigFolder
-    Out-InstalledSoftware
-    Out-InstalledWindowsFeatures
-    Out-FMSORoles
+function Out-NetworkInfo {
+    (Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPEnabled=TRUE -ComputerName . | Select-Object -Property [a-z]* -ExcludeProperty IPX*,WINS*) `
+    | Out-File -FilePath ("{0}\network_config.txt" -f $CONFIG_PATH)
+}
+Add-ConfigFolder
+Out-InstalledSoftware
+Out-InstalledWindowsFeatures
+Out-FMSORoles
+Out-SystemInfo
+Out-NetworkInfo
 
 
